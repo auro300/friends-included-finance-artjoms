@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "db:apply": "tsx scripts/apply-schema.ts",
     "seed:employees": "tsx scripts/seed-employees.ts",
     "telegram:set-webhook": "tsx scripts/set-telegram-webhook.ts"
   },
@@ -22,10 +23,12 @@
   },
   "devDependencies": {
     "@types/node": "^24.7.2",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
     "eslint": "^9.37.0",
     "eslint-config-next": "^16.0.0",
+    "pg": "^8.23.0",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3",
     "vercel": "^60.1.3",
