@@ -1,0 +1,34 @@
+{
+  "name": "friends-included-artjoms",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "seed:employees": "tsx scripts/seed-employees.ts",
+    "telegram:set-webhook": "tsx scripts/set-telegram-webhook.ts"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.57.4",
+    "google-auth-library": "^10.3.0",
+    "next": "^16.0.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "zod": "^4.1.11"
+  },
+  "devDependencies": {
+    "@types/node": "^24.7.2",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "eslint": "^9.37.0",
+    "eslint-config-next": "^16.0.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3",
+    "vercel": "^60.1.3",
+    "vitest": "^3.2.4"
+  }
+}

@@ -1,0 +1,15 @@
+node_modules
+.next
+.vercel
+.env
+.env.local
+.env.*.local
+coverage
+*.log
+.DS_Store
+.env*
+!.env.example
+*.tsbuildinfo
+outputs/
+tools/node_modules
+tools/runtime
