@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { EMPLOYEES } from "@/lib/employees";
 import type { Allocation, CommissionSplit, EmployeeSlug, Expense, FinancialSummary, Sale } from "@/lib/types";
 
@@ -63,27 +63,36 @@ export function FinanceDesk({ links }: { links: { telegram: string; sheet: strin
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const latestLoad = useRef(0);
 
   async function refresh() {
+    const loadId = ++latestLoad.current;
     setLoading(true);
     setError("");
     try {
-      setData(await fetchDashboard(role));
+      const payload = await fetchDashboard(role);
+      if (loadId === latestLoad.current) setData(payload);
     } catch (loadError) {
-      setData(null);
-      setError(loadError instanceof Error ? loadError.message : "Could not load records.");
+      if (loadId === latestLoad.current) {
+        setData(null);
+        setError(loadError instanceof Error ? loadError.message : "Could not load records.");
+      }
     } finally {
-      setLoading(false);
+      if (loadId === latestLoad.current) setLoading(false);
     }
   }
 
   useEffect(() => {
-    let active = true;
+    const loadId = ++latestLoad.current;
     fetchDashboard(role)
-      .then((payload) => { if (active) setData(payload); })
-      .catch((loadError: unknown) => { if (active) { setData(null); setError(loadError instanceof Error ? loadError.message : "Could not load records."); } })
-      .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
+      .then((payload) => { if (loadId === latestLoad.current) setData(payload); })
+      .catch((loadError: unknown) => {
+        if (loadId === latestLoad.current) {
+          setData(null);
+          setError(loadError instanceof Error ? loadError.message : "Could not load records.");
+        }
+      })
+      .finally(() => { if (loadId === latestLoad.current) setLoading(false); });
   }, [role]);
 
   function changeRole(nextRole: EmployeeSlug) {
@@ -114,8 +123,10 @@ export function FinanceDesk({ links }: { links: { telegram: string; sheet: strin
     try {
       await action();
       setNotice(success);
+      return true;
     } catch (actionError) {
       setError(actionError instanceof Error ? actionError.message : "The action failed.");
+      return false;
     }
   }
 
@@ -229,16 +240,17 @@ function Dashboard({ summary }: { summary: FinancialSummary }) {
   );
 }
 
-function SaleForm({ onSubmit }: { onSubmit: (body: unknown) => Promise<void> }) {
+function SaleForm({ onSubmit }: { onSubmit: (body: unknown) => Promise<boolean> }) {
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    await onSubmit({
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
+    const saved = await onSubmit({
       reference: form.get("reference"), customer: form.get("customer"), project: form.get("project"), description: form.get("description"),
       amountCents: Math.round(Number(form.get("amount")) * 100),
       split: { richard: Number(form.get("richard")), anastasia: Number(form.get("anastasia")), jeanClaude: Number(form.get("jeanClaude")) },
     });
-    event.currentTarget.reset();
+    if (saved) formElement.reset();
   }
   return (
     <section className="workspace narrow" aria-labelledby="sale-title">
@@ -260,15 +272,16 @@ function SaleForm({ onSubmit }: { onSubmit: (body: unknown) => Promise<void> }) 
   );
 }
 
-function ExpenseForm({ onSubmit }: { onSubmit: (body: unknown) => Promise<void> }) {
+function ExpenseForm({ onSubmit }: { onSubmit: (body: unknown) => Promise<boolean> }) {
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    await onSubmit({
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
+    const saved = await onSubmit({
       reference: form.get("reference"), category: form.get("category"), amountCents: Math.round(Number(form.get("amount")) * 100),
       proposedAllocation: form.get("allocation"), description: form.get("description"),
     });
-    event.currentTarget.reset();
+    if (saved) formElement.reset();
   }
   return (
     <section className="workspace narrow" aria-labelledby="expense-title">
@@ -285,7 +298,7 @@ function ExpenseForm({ onSubmit }: { onSubmit: (body: unknown) => Promise<void> 
   );
 }
 
-function Decisions({ data, mutate, runAction }: { data: DashboardData; mutate: (path: string, body: unknown) => Promise<unknown>; runAction: (action: () => Promise<unknown>, success: string) => Promise<void> }) {
+function Decisions({ data, mutate, runAction }: { data: DashboardData; mutate: (path: string, body: unknown) => Promise<unknown>; runAction: (action: () => Promise<unknown>, success: string) => Promise<boolean> }) {
   const pendingSales = data.sales.filter((sale) => sale.status === "pending");
   const pendingExpenses = data.expenses.filter((expense) => expense.status === "awaiting_allocation");
   return (
@@ -299,7 +312,7 @@ function Decisions({ data, mutate, runAction }: { data: DashboardData; mutate: (
   );
 }
 
-function SaleDecision({ sale, onApprove }: { sale: Sale; onApprove: (split: CommissionSplit) => Promise<void> }) {
+function SaleDecision({ sale, onApprove }: { sale: Sale; onApprove: (split: CommissionSplit) => Promise<boolean> }) {
   const [split, setSplit] = useState(sale.proposedSplit);
   const total = split.richard + split.anastasia + split.jeanClaude;
   return (
@@ -314,7 +327,7 @@ function SaleDecision({ sale, onApprove }: { sale: Sale; onApprove: (split: Comm
   );
 }
 
-function ExpenseDecision({ expense, onAllocate }: { expense: Expense; onAllocate: (allocation: Allocation) => Promise<void> }) {
+function ExpenseDecision({ expense, onAllocate }: { expense: Expense; onAllocate: (allocation: Allocation) => Promise<boolean> }) {
   const [allocation, setAllocation] = useState<Allocation>(expense.proposedAllocation);
   return (
     <article className="decision-card">
@@ -326,7 +339,7 @@ function ExpenseDecision({ expense, onAllocate }: { expense: Expense; onAllocate
   );
 }
 
-function Records({ data, role, mutate, runAction }: { data: DashboardData; role: EmployeeSlug; mutate: (path: string, body: unknown) => Promise<unknown>; runAction: (action: () => Promise<unknown>, success: string) => Promise<void> }) {
+function Records({ data, role, mutate, runAction }: { data: DashboardData; role: EmployeeSlug; mutate: (path: string, body: unknown) => Promise<unknown>; runAction: (action: () => Promise<unknown>, success: string) => Promise<boolean> }) {
   const manager = EMPLOYEES[role].role === "manager";
   return (
     <section className="workspace" aria-labelledby="records-title">
@@ -342,7 +355,7 @@ function RecordTable({ title, children }: { title: string; children: React.React
   return <div className="record-block"><h3>{title}</h3><div className="table-scroll"><table>{children}</table></div></div>;
 }
 
-function TelegramSetup({ data, mutate, runAction, botUrl }: { data: DashboardData; mutate: (path: string, body: unknown) => Promise<unknown>; runAction: (action: () => Promise<unknown>, success: string) => Promise<void>; botUrl: string }) {
+function TelegramSetup({ data, mutate, runAction, botUrl }: { data: DashboardData; mutate: (path: string, body: unknown) => Promise<unknown>; runAction: (action: () => Promise<unknown>, success: string) => Promise<boolean>; botUrl: string }) {
   const [contactId, setContactId] = useState(data.telegramContacts[0]?.telegram_user_id ?? "");
   const [employee, setEmployee] = useState<EmployeeSlug>("richard");
   const contact = data.telegramContacts.find((item) => item.telegram_user_id === contactId);

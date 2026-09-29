@@ -72,4 +72,6 @@ pnpm run lint
 pnpm run build
 ```
 
+The automated suite covers the supplied financial control totals, commission rounding, invalid splits and amounts, required fields, processing-layer role enforcement, a simulated interrupted Sheets update, and repeated-approval idempotency. The failure simulation confirms that the source record remains saved while its synchronization status becomes `failed`, allowing the existing manager retry control to restore the same reference without changing financial totals.
+
 Private credentials are never committed. `.env.example` contains names only.
